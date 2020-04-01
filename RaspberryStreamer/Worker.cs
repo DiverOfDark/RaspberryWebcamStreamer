@@ -18,12 +18,15 @@ namespace RaspberryStreamer
         private readonly ILogger<Worker> _logger;
         private readonly DuetWifiStatusProvider _statusProvider;
         private readonly WebCameraProvider _webCameraProvider;
+        private readonly StreamerSettings _streamerSettings;
 
-        public Worker(ILogger<Worker> logger, DuetWifiStatusProvider statusProvider, WebCameraProvider webCameraProvider)
+        public Worker(ILogger<Worker> logger, DuetWifiStatusProvider statusProvider, WebCameraProvider webCameraProvider, StreamerSettings streamerSettings)
         {
             _logger = logger;
             _statusProvider = statusProvider;
             _webCameraProvider = webCameraProvider;
+            _streamerSettings = streamerSettings;
+            FFMpegSetup.Init(logger);
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -38,10 +41,11 @@ namespace RaspberryStreamer
 
                     if (_statusProvider.Status == null || _statusProvider.Status.IsIdle)
                     {
-                        continue;
+//                        continue;
                     }
 
                     await StartRecording(stoppingToken);
+                    Environment.FailFast("");
                 }
                 catch (Exception ex)
                 {
@@ -55,16 +59,17 @@ namespace RaspberryStreamer
         {
             while (_statusProvider.FileInfo == null)
             {
-                await Task.Delay(1000 / VideoWriter.Fps);
+                await Task.Delay(1000 / _streamerSettings.FPS);
             }
             
             var filename = _statusProvider.FileInfo.GetFileNameWithoutPath();
             filename = GenerateVideoFileName(filename);
 
-            using var writer = new VideoWriter(filename, _webCameraProvider.CurrentFrame, _logger);
+            using var writer = new VideoWriter(filename, _streamerSettings.Width, _streamerSettings.Height, _streamerSettings.FPS);
 
             _logger.LogInformation($"Non-Idle, starting recording of {filename}");
-            while (!_statusProvider.Status.IsIdle && !stoppingToken.IsCancellationRequested)
+            int counter = 0;
+            while (!_statusProvider.Status.IsIdle && !stoppingToken.IsCancellationRequested || counter++ < _streamerSettings.FPS * 5)
             {
                 if (_statusProvider.Status.IsPaused)
                 {
@@ -73,7 +78,7 @@ namespace RaspberryStreamer
                 }
 
                 writer.WriteFrame(_webCameraProvider.CurrentFrame);
-                await Task.Delay(1000 / VideoWriter.Fps, stoppingToken);
+                await Task.Delay(1000 / _streamerSettings.FPS, stoppingToken);
             }
             _logger.LogInformation($"Completed recording of {filename}");
         }
@@ -81,8 +86,10 @@ namespace RaspberryStreamer
         private string GenerateVideoFileName(string filename)
         {
             filename = Path.GetFileNameWithoutExtension(filename);
+            if (string.IsNullOrWhiteSpace(filename))
+                filename = "Unknown";
 
-            if (!File.Exists(filename + ".mp4"))
+            if (!File.Exists(filename + ".mp4") || true)
                 return filename + ".mp4";
             int count = 1;
             while (true)

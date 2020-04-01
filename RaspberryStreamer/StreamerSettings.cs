@@ -9,5 +9,8 @@ namespace RaspberryStreamer
         public string DuetWifiHost => "duetwifi";
 
         public string WebCamUrl => "http://raspberry:8081/?action=snapshot";
+        public int Width { get; } = 1280;
+        public int Height { get; } = 720;
+        public int FPS { get; } = 25;
     }
 }

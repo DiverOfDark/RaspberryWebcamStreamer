@@ -1,6 +1,4 @@
 using System;
-using System.Drawing;
-using System.IO;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -11,6 +9,8 @@ namespace RaspberryStreamer
     {
         private readonly StreamerSettings _settings;
         private readonly HttpClient _httpClient;
+
+        private Action onDispose;
 
         public WebCameraProvider(StreamerSettings settings)
         {
@@ -26,15 +26,13 @@ namespace RaspberryStreamer
             while (!ct.IsCancellationRequested)
             {
                 var bytes = await _httpClient.GetByteArrayAsync(_settings.WebCamUrl);
-                var newBitmap = (Bitmap) Image.FromStream(new MemoryStream(bytes));
-                var oldBitmap = CurrentFrame;
-                CurrentFrame = newBitmap;
-                await Task.Delay(1000 / VideoWriter.Fps, ct);
-                oldBitmap?.Dispose();
+
+                CurrentFrame = bytes;
+                await Task.Delay(1000 / _settings.FPS, ct);
             }
         }
 
-        public Bitmap CurrentFrame { get; private set; }
+        public byte[] CurrentFrame { get; private set; }
 
         public void Dispose() => _httpClient?.Dispose();
     }
