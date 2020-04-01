@@ -41,11 +41,10 @@ namespace RaspberryStreamer
 
                     if (_statusProvider.Status == null || _statusProvider.Status.IsIdle)
                     {
-//                        continue;
+                        continue;
                     }
 
                     await StartRecording(stoppingToken);
-                    Environment.FailFast("");
                 }
                 catch (Exception ex)
                 {
@@ -65,11 +64,10 @@ namespace RaspberryStreamer
             var filename = _statusProvider.FileInfo.GetFileNameWithoutPath();
             filename = GenerateVideoFileName(filename);
 
-            using var writer = new VideoWriter(filename, _streamerSettings.Width, _streamerSettings.Height, _streamerSettings.FPS);
+            using var writer = new VideoWriter(filename, _streamerSettings.Width, _streamerSettings.Height, _streamerSettings.FlipY, _streamerSettings.FPS);
 
             _logger.LogInformation($"Non-Idle, starting recording of {filename}");
-            int counter = 0;
-            while (!_statusProvider.Status.IsIdle && !stoppingToken.IsCancellationRequested || counter++ < _streamerSettings.FPS * 5)
+            while (!_statusProvider.Status.IsIdle && !stoppingToken.IsCancellationRequested)
             {
                 if (_statusProvider.Status.IsPaused)
                 {
@@ -89,7 +87,7 @@ namespace RaspberryStreamer
             if (string.IsNullOrWhiteSpace(filename))
                 filename = "Unknown";
 
-            if (!File.Exists(filename + ".mp4") || true)
+            if (!File.Exists(filename + ".mp4"))
                 return filename + ".mp4";
             int count = 1;
             while (true)

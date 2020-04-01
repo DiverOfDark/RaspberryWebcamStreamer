@@ -12,5 +12,7 @@ namespace RaspberryStreamer
         public int Width { get; } = 1280;
         public int Height { get; } = 720;
         public int FPS { get; } = 25;
+
+        public bool FlipY { get; } = true;
     }
 }

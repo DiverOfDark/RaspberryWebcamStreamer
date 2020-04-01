@@ -15,9 +15,12 @@ namespace RaspberryStreamer
         private int _frameCounter;
         private void* _convertBuffer;
 
-        public VideoWriter(string filename, int width, int height, int fps)
+        public VideoWriter(string filename, StreamerSettings settings)
         {
-            _fps = fps;
+            _flipY = settings.FlipY;
+            _fps = settings.FPS;
+            var width = settings.Width;
+            var height = settings.Height;
 
             _h264Codec = ffmpeg.avcodec_find_encoder(AVCodecID.AV_CODEC_ID_H264);
             if (_h264Codec == null) {
@@ -32,14 +35,14 @@ namespace RaspberryStreamer
 
                 _h264Stream->codec->width = width;
                 _h264Stream->codec->height = height;
-                _h264Stream->codec->time_base = new AVRational {num = 1, den = fps};
+                _h264Stream->codec->time_base = new AVRational {num = 1, den = _fps};
                 _h264Stream->codec->pix_fmt = AVPixelFormat.AV_PIX_FMT_YUV420P;
                 ffmpeg.av_opt_set(_h264Stream->codec->priv_data, "preset", "slow", 0);
 
                 if ((_h264AvFormatContext->oformat->flags & ffmpeg.AVFMT_GLOBALHEADER) != 0) // Some formats require a global header.
                     _h264Stream->codec->flags |= ffmpeg.AV_CODEC_FLAG_GLOBAL_HEADER;
                 ffmpeg.avcodec_open2(_h264Stream->codec, _h264Codec, null).ThrowExceptionIfError();
-                _h264Stream->time_base = new AVRational() { num = 1, den = fps};
+                _h264Stream->time_base = new AVRational() { num = 1, den = _fps};
 
                 ffmpeg.avio_open(&_h264AvFormatContext->pb, filename, ffmpeg.AVIO_FLAG_WRITE);
                 ffmpeg.avformat_write_header(_h264AvFormatContext, null).ThrowExceptionIfError();
