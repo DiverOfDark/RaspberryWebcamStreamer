@@ -4,6 +4,9 @@ using FFmpeg.AutoGen;
 
 namespace RaspberryStreamer
 {
+    // TODO Guess width/height from stream instead of configuring it in code
+    // TODO Add FlipX/FlipY filters
+    // TODO Get picture from v4l2 instead of URL / jpeg decode
     public unsafe class VideoWriter : IDisposable
     {
         private readonly int _fps;
@@ -11,13 +14,12 @@ namespace RaspberryStreamer
         private readonly AVStream* _h264Stream;
         private readonly AVFormatContext* _h264AvFormatContext = null;
         private SwsContext* _convertContext = null;
+        private readonly void* _convertBuffer;
 
         private int _frameCounter;
-        private void* _convertBuffer;
 
         public VideoWriter(string filename, StreamerSettings settings)
         {
-            _flipY = settings.FlipY;
             _fps = settings.FPS;
             var width = settings.Width;
             var height = settings.Height;
