@@ -56,7 +56,7 @@ namespace RaspberryStreamer
 
         private void StartRecording(CancellationToken stoppingToken)
         {
-            while (_statusProvider.FileInfo == null)
+            while (_statusProvider.FileInfo == null || _webCameraProvider.CurrentFrame == null)
             {
                 Thread.Sleep(1000 / _streamerSettings.FPS);
             }
@@ -64,7 +64,7 @@ namespace RaspberryStreamer
             var filename = _statusProvider.FileInfo.GetFileNameWithoutPath();
             filename = GenerateVideoFileName(filename);
 
-            using var writer = new VideoWriter(filename, _streamerSettings);
+            using var writer = new VideoWriter(filename, _webCameraProvider.CurrentFrame, _streamerSettings);
 
             _logger.LogInformation($"Non-Idle, starting recording of {filename}");
             var sw = new Stopwatch();

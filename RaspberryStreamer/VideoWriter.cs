@@ -3,24 +3,87 @@ using FFmpeg.AutoGen;
 
 namespace RaspberryStreamer
 {
-    // TODO Guess width/height from stream instead of configuring it in code
+    public unsafe class VideoFlipperConverter : IDisposable
+    {
+        private readonly int _width;
+        private readonly int _height;
+        private readonly AVFilterContext* _filterSourceContext;
+        private readonly AVFilterContext* _filterSinkContext;
+        private readonly AVFilterGraph* _filterGraph;
+
+        public VideoFlipperConverter(int width, int height, AVPixelFormat inputPixelFormat, StreamerSettings settings)
+        {
+            _width = width;
+            _height = height;
+            string filters = $"buffer=width={width}:height={height}:pix_fmt={(int)inputPixelFormat}:time_base=1/1:pixel_aspect=1/1 [in]; [out] buffersink;[in] format=pix_fmts=0 [in1];";
+            int inputCount = 1;
+            if (settings.FlipY)
+            {
+                filters += $"[in{inputCount}] vflip [in{++inputCount}];";
+            }
+            if (settings.FlipX)
+            {
+                filters += $"[in{inputCount}] hflip [in{++inputCount}];";
+            }
+
+            filters += $"[in{inputCount}] copy [out]";
+            AVFilterInOut* gis = null;
+            AVFilterInOut* gos = null;
+
+            _filterGraph = ffmpeg.avfilter_graph_alloc();
+            ffmpeg.avfilter_graph_parse2(_filterGraph, filters, &gis, &gos).ThrowExceptionIfError();
+            ffmpeg.avfilter_graph_config(_filterGraph, null).ThrowExceptionIfError();
+
+            _filterSourceContext = ffmpeg.avfilter_graph_get_filter(_filterGraph, "Parsed_buffer_0");
+            _filterSinkContext = ffmpeg.avfilter_graph_get_filter(_filterGraph, "Parsed_buffersink_1");
+            if (_filterSourceContext == null || _filterSinkContext == null)
+                throw new Exception("Failed to create filter sinks");
+        }
+
+        public AVFrame* FlipFrame(AVFrame* source)
+        {
+            var flippedFrame = ffmpeg.av_frame_alloc();
+            var flippedFrameBuffer = (byte*)ffmpeg.av_malloc((ulong)ffmpeg.av_image_get_buffer_size(AVPixelFormat.AV_PIX_FMT_YUV420P, _width, _height, 1));
+            var dataArr = new byte_ptrArray4();
+            dataArr.UpdateFrom(flippedFrame->data);
+            var linesizeArr = new int_array4();
+            linesizeArr.UpdateFrom(flippedFrame->linesize);
+            ffmpeg.av_image_fill_arrays(ref dataArr, ref linesizeArr, flippedFrameBuffer, AVPixelFormat.AV_PIX_FMT_YUV420P, _width, _height, 1);
+            flippedFrame->data.UpdateFrom(dataArr);
+            flippedFrame->linesize.UpdateFrom(linesizeArr);
+
+            ffmpeg.av_buffersrc_add_frame(_filterSourceContext, source).ThrowExceptionIfError();
+            ffmpeg.av_buffersink_get_frame(_filterSinkContext, flippedFrame).ThrowExceptionIfError();
+
+            return flippedFrame;
+        }
+
+        public void Dispose()
+        {
+            fixed (AVFilterGraph** filterGraphAddr = &_filterGraph)
+            {
+                ffmpeg.avfilter_graph_free(filterGraphAddr);
+            }
+        }
+    }
+
     // TODO Get picture from v4l2 instead of URL / jpeg decode
     public unsafe class VideoWriter : IDisposable
     {
+        private readonly VideoFlipperConverter _videoFlipperConverter;
         private readonly int _fps;
         private readonly AVCodec* _h264Codec;
         private readonly AVStream* _h264Stream;
         private readonly AVFormatContext* _h264AvFormatContext = null;
-        private readonly AVFilterGraph* _filterGraph;
-        private readonly AVFilterContext* _filterSourceContext;
-        private readonly AVFilterContext* _filterSinkContext;
         private int _frameCounter;
 
-        public VideoWriter(string filename, StreamerSettings settings)
+        public VideoWriter(string filename, byte[] frameExample, StreamerSettings settings)
         {
             _fps = settings.FPS;
-            var width = settings.Width;
-            var height = settings.Height;
+
+            var exampleFrame = GetAVFrameFromWebcamBytes(frameExample, out var width, out var height, out var webcamPixelFormat);
+            _videoFlipperConverter = new VideoFlipperConverter(width, height, webcamPixelFormat, settings);
+            ffmpeg.av_frame_free(&exampleFrame);
 
             _h264Codec = ffmpeg.avcodec_find_encoder(AVCodecID.AV_CODEC_ID_H264);
             if (_h264Codec == null) {
@@ -48,29 +111,7 @@ namespace RaspberryStreamer
             }
 
             {
-                string filters = $"buffer=width={width}:height={height}:pix_fmt=13:time_base=1/1:pixel_aspect=1/1 [in]; [out] buffersink;[in] format=pix_fmts=0 [in1];";
-                int inputCount = 1;
-                if (settings.FlipY)
-                {
-                    filters += $"[in{inputCount}] vflip [in{++inputCount}];";
-                }
-                if (settings.FlipX)
-                {
-                    filters += $"[in{inputCount}] hflip [in{++inputCount}];";
-                }
-
-                filters += $"[in{inputCount}] copy [out]";
-                AVFilterInOut* gis = null;
-                AVFilterInOut* gos = null;
-
-                _filterGraph = ffmpeg.avfilter_graph_alloc();
-                ffmpeg.avfilter_graph_parse2(_filterGraph, filters, &gis, &gos).ThrowExceptionIfError();
-                ffmpeg.avfilter_graph_config(_filterGraph, null).ThrowExceptionIfError();
-
-                _filterSourceContext = ffmpeg.avfilter_graph_get_filter(_filterGraph, "Parsed_buffer_0");
-                _filterSinkContext = ffmpeg.avfilter_graph_get_filter(_filterGraph, "Parsed_buffersink_1");
-                if (_filterSourceContext == null || _filterSinkContext == null)
-                    throw new Exception("Failed to create filter sinks");
+                
             }
         }
 
@@ -79,7 +120,7 @@ namespace RaspberryStreamer
             var webcamFrame = GetAVFrameFromWebcamBytes(bytes, out var webcamWidth, out var webcamHeight, out var webcamPixFormat);
             try
             {
-                var flippedFrame = FlipFrame(webcamFrame);
+                var flippedFrame = _videoFlipperConverter.FlipFrame(webcamFrame);
                 try
                 {
                     flippedFrame->pts = _frameCounter;
@@ -104,30 +145,9 @@ namespace RaspberryStreamer
             ffmpeg.avcodec_close(_h264Stream->codec);
             ffmpeg.av_free(_h264Stream->codec);
             ffmpeg.av_free(_h264Codec);
-            fixed (AVFilterGraph** filterGraphAddr = &_filterGraph)
-            {
-                ffmpeg.avfilter_graph_free(filterGraphAddr);
-            }
         }
 
-        private AVFrame* FlipFrame(AVFrame* source)
-        {
-            var flippedFrame = ffmpeg.av_frame_alloc();
-            var flippedFrameBuffer = (byte*) ffmpeg.av_malloc((ulong) ffmpeg.av_image_get_buffer_size(AVPixelFormat.AV_PIX_FMT_YUV420P, _h264Stream->codec->width, _h264Stream->codec->height, 1));
-            var dataArr = new byte_ptrArray4();
-            dataArr.UpdateFrom(flippedFrame->data);
-            var linesizeArr = new int_array4();
-            linesizeArr.UpdateFrom(flippedFrame->linesize);
-            ffmpeg.av_image_fill_arrays(ref dataArr, ref linesizeArr, flippedFrameBuffer, AVPixelFormat.AV_PIX_FMT_YUV420P, _h264Stream->codec->width, _h264Stream->codec->height, 1);
-            flippedFrame->data.UpdateFrom(dataArr);
-            flippedFrame->linesize.UpdateFrom(linesizeArr);
-
-            ffmpeg.av_buffersrc_add_frame(_filterSourceContext, source).ThrowExceptionIfError();
-            ffmpeg.av_buffersink_get_frame(_filterSinkContext, flippedFrame).ThrowExceptionIfError();
-
-            return flippedFrame;
-        }
-
+       
         private AVFrame* GetAVFrameFromWebcamBytes(byte[] bytes, out int width, out int height, out AVPixelFormat pixFormat)
         {
             // Decode image from byte array;
