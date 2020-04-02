@@ -64,7 +64,16 @@ namespace RaspberryStreamer
                 {
                     videoFrame->pts = _frameCounter;
                     videoFrame->format = webcamFrame->format;
-                    WriteVideoFrame(videoFrame);
+                    var flippedFrame = FlipFrame(videoFrame);
+                    try
+                    {
+                        WriteVideoFrame(flippedFrame);
+                    }
+                    finally
+                    {
+                        if (flippedFrame != videoFrame)
+                            ffmpeg.av_frame_free(&flippedFrame);
+                    }
                 }
                 finally
                 {
@@ -91,6 +100,11 @@ namespace RaspberryStreamer
             ffmpeg.av_free(_h264Stream->codec);
             ffmpeg.av_free(_h264Codec);
             ffmpeg.av_free(_convertBuffer);
+        }
+
+        private AVFrame* FlipFrame(AVFrame* source)
+        {
+            return source;
         }
 
         private AVFrame* GetAVFrameFromWebcamBytes(byte[] bytes, out int width, out int height, out AVPixelFormat pixFormat)
