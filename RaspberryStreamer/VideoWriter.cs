@@ -11,8 +11,6 @@ namespace RaspberryStreamer
         private readonly AVCodec* _h264Codec;
         private readonly AVStream* _h264Stream;
         private readonly AVFormatContext* _h264AvFormatContext = null;
-        private SwsContext* _convertContext = null;
-        private readonly void* _convertBuffer;
         private readonly AVFilterGraph* _filterGraph;
         private readonly AVFilterContext* _filterSourceContext;
         private readonly AVFilterContext* _filterSinkContext;
@@ -49,9 +47,6 @@ namespace RaspberryStreamer
                 ffmpeg.avformat_write_header(_h264AvFormatContext, null).ThrowExceptionIfError();
             }
 
-            var convertedFrameBufferSize = ffmpeg.av_image_get_buffer_size(AVPixelFormat.AV_PIX_FMT_YUV420P, _h264Stream->codec->width, _h264Stream->codec->height, 1);
-            _convertBuffer = ffmpeg.av_malloc((ulong)convertedFrameBufferSize);
-
             {
                 string filters = $"buffer=width={width}:height={height}:pix_fmt=13:time_base=1/1:pixel_aspect=1/1 [in]; [out] buffersink;[in] format=pix_fmts=0 [in1];";
                 int inputCount = 1;
@@ -84,25 +79,15 @@ namespace RaspberryStreamer
             var webcamFrame = GetAVFrameFromWebcamBytes(bytes, out var webcamWidth, out var webcamHeight, out var webcamPixFormat);
             try
             {
-                var videoFrame = ConvertFromWebcamToVideo(webcamFrame, webcamWidth, webcamHeight, webcamPixFormat);
+                var flippedFrame = FlipFrame(webcamFrame);
                 try
                 {
-                    videoFrame->pts = _frameCounter;
-                    videoFrame->format = webcamFrame->format;
-                    var flippedFrame = FlipFrame(webcamFrame);
-                    try
-                    {
-                        flippedFrame->pts = _frameCounter;
-                        WriteVideoFrame(flippedFrame);
-                    }
-                    finally
-                    {
-                        ffmpeg.av_frame_free(&flippedFrame);
-                    }
+                    flippedFrame->pts = _frameCounter;
+                    WriteVideoFrame(flippedFrame);
                 }
                 finally
                 {
-                    ffmpeg.av_frame_free(&videoFrame);
+                    ffmpeg.av_frame_free(&flippedFrame);
                 }
             }
             finally
@@ -114,17 +99,11 @@ namespace RaspberryStreamer
 
         public void Dispose()
         {
-            if (_convertContext != null)
-            {
-                ffmpeg.sws_freeContext(_convertContext);
-            }
-
             ffmpeg.av_write_trailer(_h264AvFormatContext); // Writing the end of the file.
             ffmpeg.avio_closep(&_h264AvFormatContext->pb); // Closing the file.
             ffmpeg.avcodec_close(_h264Stream->codec);
             ffmpeg.av_free(_h264Stream->codec);
             ffmpeg.av_free(_h264Codec);
-            ffmpeg.av_free(_convertBuffer);
             fixed (AVFilterGraph** filterGraphAddr = &_filterGraph)
             {
                 ffmpeg.avfilter_graph_free(filterGraphAddr);
@@ -205,42 +184,6 @@ namespace RaspberryStreamer
             height = 0;
             pixFormat = 0;
             return null;
-        }
-
-        private AVFrame* ConvertFromWebcamToVideo(AVFrame* webcamFrame, int webcamWidth, int webcamHeight, AVPixelFormat webcamPixFormat)
-        {
-            if (_convertContext == null)
-            {
-                _convertContext = ffmpeg.sws_getContext(webcamWidth,
-                    webcamHeight,
-                    webcamPixFormat,
-                    _h264Stream->codec->width,
-                    _h264Stream->codec->height,
-                    AVPixelFormat.AV_PIX_FMT_YUV420P,
-                    ffmpeg.SWS_FAST_BILINEAR,
-                    null,
-                    null,
-                    null);
-            }
-
-            var convertDstData = new byte_ptrArray4();
-            var convertDstLinesize = new int_array4();
-
-            ffmpeg.av_image_fill_arrays(ref convertDstData, ref convertDstLinesize, (byte*)_convertBuffer, AVPixelFormat.AV_PIX_FMT_YUV420P, _h264Stream->codec->width, _h264Stream->codec->height, 1).ThrowExceptionIfError();
-            ffmpeg.sws_scale(_convertContext, webcamFrame->data, webcamFrame->linesize, 0, webcamFrame->height, convertDstData, convertDstLinesize).ThrowExceptionIfError();
-
-            var data = new byte_ptrArray8();
-            data.UpdateFrom(convertDstData);
-            var linesize = new int_array8();
-            linesize.UpdateFrom(convertDstLinesize);
-
-            var convertedFrame = ffmpeg.av_frame_alloc();
-            convertedFrame->data = data;
-            convertedFrame->linesize = linesize;
-            convertedFrame->width = _h264Stream->codec->width;
-            convertedFrame->height = _h264Stream->codec->height;
-            convertedFrame->pts = _frameCounter;
-            return convertedFrame;
         }
 
         private void WriteVideoFrame(AVFrame* videoFrame)
