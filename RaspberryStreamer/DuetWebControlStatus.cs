@@ -8,6 +8,8 @@ namespace RaspberryStreamer
 
         public bool IsPaused => Status == "S";
 
+        public bool IsBusy => Status == "B";
+
         public string DetailedStatus
         {
             get

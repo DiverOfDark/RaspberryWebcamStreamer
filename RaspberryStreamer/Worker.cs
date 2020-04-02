@@ -39,7 +39,7 @@ namespace RaspberryStreamer
                 {
                     await Task.Delay(1000, stoppingToken);
 
-                    if (_statusProvider.Status == null || _statusProvider.Status.IsIdle)
+                    if (_statusProvider.Status == null || _statusProvider.Status.IsIdle || _statusProvider.Status.IsBusy)
                     {
                         continue;
                     }
@@ -66,7 +66,7 @@ namespace RaspberryStreamer
 
             using var writer = new VideoWriter(filename, _webCameraProvider.CurrentFrame, _streamerSettings);
 
-            _logger.LogInformation($"Non-Idle, starting recording of {filename}");
+            _logger.LogInformation($"Non-Idle status {_statusProvider.Status.DetailedStatus}, starting recording of {filename}.");
             var sw = new Stopwatch();
             while (!_statusProvider.Status.IsIdle && !stoppingToken.IsCancellationRequested)
             {
