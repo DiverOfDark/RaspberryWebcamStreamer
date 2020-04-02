@@ -1,12 +1,9 @@
 using System;
-using System.Diagnostics.Contracts;
-using System.Runtime.InteropServices;
 using FFmpeg.AutoGen;
 
 namespace RaspberryStreamer
 {
     // TODO Guess width/height from stream instead of configuring it in code
-    // TODO Add FlipX/FlipY filters
     // TODO Get picture from v4l2 instead of URL / jpeg decode
     public unsafe class VideoWriter : IDisposable
     {
@@ -56,7 +53,18 @@ namespace RaspberryStreamer
             _convertBuffer = ffmpeg.av_malloc((ulong)convertedFrameBufferSize);
 
             {
-                string filters = $"buffer=width={width}:height={height}:pix_fmt=13:time_base=1/1:pixel_aspect=1/1 [in]; [out] buffersink;[in] vflip [in1];[in1] format=pix_fmts=0 [out]";
+                string filters = $"buffer=width={width}:height={height}:pix_fmt=13:time_base=1/1:pixel_aspect=1/1 [in]; [out] buffersink;[in] format=pix_fmts=0 [in1];";
+                int inputCount = 1;
+                if (settings.FlipY)
+                {
+                    filters += $"[in{inputCount}] vflip [in{++inputCount}];";
+                }
+                if (settings.FlipX)
+                {
+                    filters += $"[in{inputCount}] hflip [in{++inputCount}];";
+                }
+
+                filters += $"[in{inputCount}] copy [out]";
                 AVFilterInOut* gis = null;
                 AVFilterInOut* gos = null;
 
@@ -85,7 +93,6 @@ namespace RaspberryStreamer
                     try
                     {
                         flippedFrame->pts = _frameCounter;
-                        flippedFrame->format = webcamFrame->format;
                         WriteVideoFrame(flippedFrame);
                     }
                     finally

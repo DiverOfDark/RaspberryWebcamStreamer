@@ -27,8 +27,7 @@ namespace RaspberryStreamer
                     }
 
                     ffmpeg.av_log_set_level(ffmpeg.AV_LOG_ERROR);
-                    if (Debugger.IsAttached)
-                        ffmpeg.av_log_set_level(ffmpeg.AV_LOG_MAX_OFFSET);
+                    // ffmpeg.av_log_set_level(ffmpeg.AV_LOG_MAX_OFFSET);
                     _callback = LogCallback;
                     ffmpeg.av_log_set_callback(_callback);
                 }

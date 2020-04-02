@@ -14,5 +14,6 @@ namespace RaspberryStreamer
         public int FPS { get; } = 25;
 
         public bool FlipY { get; } = true;
+        public bool FlipX { get; } = false;
     }
 }
