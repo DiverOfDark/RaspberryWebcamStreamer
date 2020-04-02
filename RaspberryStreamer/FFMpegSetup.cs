@@ -27,6 +27,8 @@ namespace RaspberryStreamer
                     }
 
                     ffmpeg.av_log_set_level(ffmpeg.AV_LOG_ERROR);
+                    if (Debugger.IsAttached)
+                        ffmpeg.av_log_set_level(ffmpeg.AV_LOG_MAX_OFFSET);
                     _callback = LogCallback;
                     ffmpeg.av_log_set_callback(_callback);
                 }
@@ -44,8 +46,46 @@ namespace RaspberryStreamer
             var line = Marshal.PtrToStringAnsi((IntPtr) lineBuffer).Trim();
             if (!line.Contains("unable to decode APP fields: Invalid data found when processing input"))
             {
-                _globalLogger.LogWarning(line);
+                _globalLogger.Log(ConvertLogLevel(level), line);
             }
+        }
+
+        private static LogLevel ConvertLogLevel(in int level)
+        {
+            switch (level)
+            {
+                case ffmpeg.AV_LOG_MAX_OFFSET:
+                case ffmpeg.AV_LOG_TRACE:
+                    return LogLevel.Trace;
+                case ffmpeg.AV_LOG_DEBUG:
+                case ffmpeg.AV_LOG_VERBOSE:
+                    return LogLevel.Debug;
+                case ffmpeg.AV_LOG_ERROR:
+                    return LogLevel.Error;
+                case ffmpeg.AV_LOG_PANIC:
+                case ffmpeg.AV_LOG_FATAL:
+                    return LogLevel.Critical;
+                case ffmpeg.AV_LOG_WARNING:
+                case ffmpeg.AV_LOG_QUIET:
+                    return LogLevel.Warning;
+
+                case ffmpeg.AV_LOG_INFO:
+                default:
+                    return LogLevel.Information;
+            }
+        }
+
+        public static unsafe int ThrowExceptionIfError(this int error)
+        {
+            if (error < 0)
+            {
+                var bufferSize = 1024;
+                var buffer = stackalloc byte[bufferSize];
+                ffmpeg.av_strerror(error, buffer, (ulong)bufferSize);
+                var message = Marshal.PtrToStringAnsi((IntPtr)buffer);
+                throw new ApplicationException(message);
+            }
+            return error;
         }
     }
 }
