@@ -44,7 +44,7 @@ namespace RaspberryStreamer
                         continue;
                     }
 
-                    await StartRecording(stoppingToken);
+                    StartRecording(stoppingToken);
                 }
                 catch (Exception ex)
                 {
@@ -54,11 +54,11 @@ namespace RaspberryStreamer
             _webCameraProvider.Dispose();
         }
 
-        private async Task StartRecording(CancellationToken stoppingToken)
+        private void StartRecording(CancellationToken stoppingToken)
         {
             while (_statusProvider.FileInfo == null)
             {
-                await Task.Delay(1000 / _streamerSettings.FPS);
+                Thread.Sleep(1000 / _streamerSettings.FPS);
             }
             
             var filename = _statusProvider.FileInfo.GetFileNameWithoutPath();
@@ -67,16 +67,21 @@ namespace RaspberryStreamer
             using var writer = new VideoWriter(filename, _streamerSettings);
 
             _logger.LogInformation($"Non-Idle, starting recording of {filename}");
+            var sw = new Stopwatch();
             while (!_statusProvider.Status.IsIdle && !stoppingToken.IsCancellationRequested)
             {
                 if (_statusProvider.Status.IsPaused)
                 {
-                    await Task.Delay(100, stoppingToken);
+                    Thread.Sleep(100);
                     continue;
                 }
-
+                sw.Restart();
                 writer.WriteFrame(_webCameraProvider.CurrentFrame);
-                await Task.Delay(1000 / _streamerSettings.FPS, stoppingToken);
+                var delay = (int) (1000.0 / _streamerSettings.FPS - sw.ElapsedMilliseconds);
+                if (delay > 0)
+                {
+                    Thread.Sleep(delay);
+                }
             }
             _logger.LogInformation($"Completed recording of {filename}");
         }
