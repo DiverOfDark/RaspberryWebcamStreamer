@@ -62,8 +62,9 @@ namespace RaspberryStreamer
                 var videoFrame = ConvertFromWebcamToVideo(webcamFrame, webcamWidth, webcamHeight, webcamPixFormat);
                 try
                 {
-                    webcamFrame->pts = _frameCounter;
-                    WriteVideoFrame(webcamFrame);
+                    videoFrame->pts = _frameCounter;
+                    videoFrame->format = webcamFrame->format;
+                    WriteVideoFrame(videoFrame);
                 }
                 finally
                 {

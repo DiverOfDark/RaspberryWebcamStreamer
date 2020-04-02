@@ -10,8 +10,6 @@ namespace RaspberryStreamer
         private readonly StreamerSettings _settings;
         private readonly HttpClient _httpClient;
 
-        private Action onDispose;
-
         public WebCameraProvider(StreamerSettings settings)
         {
             _settings = settings;

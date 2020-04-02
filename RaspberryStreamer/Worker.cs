@@ -64,7 +64,7 @@ namespace RaspberryStreamer
             var filename = _statusProvider.FileInfo.GetFileNameWithoutPath();
             filename = GenerateVideoFileName(filename);
 
-            using var writer = new VideoWriter(filename, _streamerSettings.Width, _streamerSettings.Height, _streamerSettings.FlipY, _streamerSettings.FPS);
+            using var writer = new VideoWriter(filename, _streamerSettings);
 
             _logger.LogInformation($"Non-Idle, starting recording of {filename}");
             while (!_statusProvider.Status.IsIdle && !stoppingToken.IsCancellationRequested)
