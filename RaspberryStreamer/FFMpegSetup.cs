@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using FFmpeg.AutoGen;
@@ -25,7 +26,7 @@ namespace RaspberryStreamer
                         ffmpeg.RootPath = Path.Combine(Environment.CurrentDirectory, "ffmpeg/x86_64");
                     }
 
-                    ffmpeg.av_log_set_level(ffmpeg.AV_LOG_INFO);
+                    ffmpeg.av_log_set_level(ffmpeg.AV_LOG_ERROR);
                     _callback = LogCallback;
                     ffmpeg.av_log_set_callback(_callback);
                 }
@@ -40,8 +41,11 @@ namespace RaspberryStreamer
             var lineBuffer = stackalloc byte[lineSize];
             var printPrefix = 1;
             ffmpeg.av_log_format_line(p0, level, format, vl, lineBuffer, lineSize, &printPrefix);
-            var line = Marshal.PtrToStringAnsi((IntPtr) lineBuffer);
-            _globalLogger.LogInformation(line.Trim());
+            var line = Marshal.PtrToStringAnsi((IntPtr) lineBuffer).Trim();
+            if (!line.Contains("unable to decode APP fields: Invalid data found when processing input"))
+            {
+                _globalLogger.LogWarning(line);
+            }
         }
     }
 }
