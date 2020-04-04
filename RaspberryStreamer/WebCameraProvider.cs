@@ -1,5 +1,6 @@
 using System;
 using System.Net.Http;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using FFmpeg.AutoGen;
@@ -49,11 +50,12 @@ namespace RaspberryStreamer
 
         public unsafe AVFrame* GetFrame() => GetFrame(_currentFrame, out _, out _, out _);
 
-        private static unsafe AVFrame* GetFrame(byte[] bytes, out int width, out int height, out AVPixelFormat pixFormat)
+        private unsafe AVFrame* GetFrame(byte[] bytes, out int width, out int height, out AVPixelFormat pixFormat)
         {
             // Decode image from byte array;
             AVFormatContext* webcamFormatContext = ffmpeg.avformat_alloc_context();
-            var webcamByteReader = new ByteReader(bytes);
+            var webcamByteReader = new ByteReader();
+            webcamByteReader.Buffer = bytes;
             var webcamBuffer = ffmpeg.av_malloc(4096);
             var webcamAllocContext = ffmpeg.avio_alloc_context((byte*)webcamBuffer, 4096, 0, null,
                 (avio_alloc_context_read_packet_func)webcamByteReader.Read, null,
@@ -115,6 +117,9 @@ namespace RaspberryStreamer
         }
 
 
-        public void Dispose() => _httpClient?.Dispose();
+        public void Dispose()
+        {
+            _httpClient?.Dispose();
+        }
     }
 }
