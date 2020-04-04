@@ -5,6 +5,8 @@ using System.Threading.Tasks;
 using CommandLine;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Console;
 using Microsoft.Extensions.Options;
 
 namespace RaspberryStreamer
@@ -29,6 +31,12 @@ namespace RaspberryStreamer
         {
             Host.CreateDefaultBuilder()
                 .UseSystemd()
+                .ConfigureLogging((ctx, x) =>
+                {
+                    x.SetMinimumLevel(LogLevel.Trace)
+                        .AddFile("app.log")
+                        .AddConsole(t => t.Format = ConsoleLoggerFormat.Systemd);
+                })
                 .ConfigureServices((hostContext, services) =>
                 {
                     services.AddSingleton(streamerSettings);

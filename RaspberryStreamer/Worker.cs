@@ -15,10 +15,10 @@ namespace RaspberryStreamer
         private readonly WebCameraProvider _webCameraProvider;
         private readonly StreamerSettings _streamerSettings;
 
-        public Worker(ILogger<Worker> logger, DuetWifiStatusProvider statusProvider, StreamerSettings streamerSettings)
+        public Worker(ILoggerFactory loggerFactory, DuetWifiStatusProvider statusProvider, StreamerSettings streamerSettings)
         {
-            FFMpegSetup.Init(logger);
-            _logger = logger;
+            FFMpegSetup.Init(loggerFactory.CreateLogger<FFMpegSetup>());
+            _logger = loggerFactory.CreateLogger<Worker>();
             _logger.LogInformation($"Starting with settings: {streamerSettings}");
             _statusProvider = statusProvider;
             _webCameraProvider = new WebCameraProvider(streamerSettings);

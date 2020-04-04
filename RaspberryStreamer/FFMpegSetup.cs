@@ -1,5 +1,4 @@
 using System;
-using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using FFmpeg.AutoGen;
@@ -7,7 +6,7 @@ using Microsoft.Extensions.Logging;
 
 namespace RaspberryStreamer
 {
-    public static class FFMpegSetup
+    public class FFMpegSetup
     {
         private static ILogger _globalLogger;
 
@@ -73,7 +72,10 @@ namespace RaspberryStreamer
                     return LogLevel.Information;
             }
         }
+    }
 
+    public static class FFMpegHelpers
+    {
         public static unsafe int ThrowExceptionIfError(this int error)
         {
             if (error < 0)

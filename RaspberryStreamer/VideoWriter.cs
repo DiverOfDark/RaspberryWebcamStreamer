@@ -8,6 +8,7 @@ namespace RaspberryStreamer
     // TODO use hardware accelerated h264
     public unsafe class VideoWriter : IDisposable
     {
+        private readonly ILogger _logger;
         private readonly VideoFlipperConverter _videoFlipperConverter;
         private readonly int _fps;
         private readonly AVCodec* _h264Codec;
@@ -17,6 +18,7 @@ namespace RaspberryStreamer
 
         public VideoWriter(ILogger logger, string filename, int width, int height, AVPixelFormat webcamPixelFormat, StreamerSettings settings)
         {
+            _logger = logger;
             _fps = settings.FPS;
 
             _videoFlipperConverter = new VideoFlipperConverter(width, height, webcamPixelFormat, settings);
@@ -24,7 +26,7 @@ namespace RaspberryStreamer
             _h264Codec = ffmpeg.avcodec_find_encoder_by_name("h264_omx");
             if (_h264Codec == null)
             {
-                logger.LogError("Don't using hardware-accelerated h264 encoder, falling back to software one.");
+                _logger.LogError("Don't using hardware-accelerated h264 encoder, falling back to software one.");
                 _h264Codec = ffmpeg.avcodec_find_encoder_by_name("libx264");
             }
 
@@ -75,7 +77,6 @@ namespace RaspberryStreamer
             ffmpeg.avio_closep(&_h264AvFormatContext->pb); // Closing the file.
             ffmpeg.avcodec_close(_h264Stream->codec);
             ffmpeg.av_free(_h264Stream->codec);
-            ffmpeg.av_free(_h264Codec);
             _videoFlipperConverter.Dispose();
         }
 
