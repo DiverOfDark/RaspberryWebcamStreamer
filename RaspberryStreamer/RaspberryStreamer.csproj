@@ -5,6 +5,9 @@
     <UserSecretsId>dotnet-RaspberryStreamer-6B673D2D-2BB4-4E6E-B2F5-4B6D9A78027D</UserSecretsId>
     <StartupObject>RaspberryStreamer.Program</StartupObject>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <RuntimeIdentifiers>win7-x64;linux-arm</RuntimeIdentifiers>
+    <PublishSingleFile Condition="'$(RuntimeIdentifier)|$(Configuration)' == 'linux-arm|Release'">true</PublishSingleFile>
+    <PublishTrimmed Condition="'$(RuntimeIdentifier)|$(Configuration)' == 'linux-arm|Release'">true</PublishTrimmed>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
@@ -13,12 +16,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Content Include="ffmpeg\**">
+    <Content Include="ffmpeg\**" Condition="'$(RuntimeIdentifier)' == 'win7-x64'">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="CommandLineParser" Version="2.7.82" />
     <PackageReference Include="FFmpeg.AutoGen" Version="4.2.2.1" />
     <PackageReference Include="Microsoft.Extensions.Hosting.Systemd" Version="3.1.3" />
     <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />

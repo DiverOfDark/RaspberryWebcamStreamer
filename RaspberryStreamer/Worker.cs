@@ -1,15 +1,10 @@
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Drawing;
 using System.IO;
-using System.Linq;
-using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 
 namespace RaspberryStreamer
 {
@@ -23,6 +18,7 @@ namespace RaspberryStreamer
         public Worker(ILogger<Worker> logger, DuetWifiStatusProvider statusProvider, WebCameraProvider webCameraProvider, StreamerSettings streamerSettings)
         {
             _logger = logger;
+            _logger.LogInformation($"Starting with settings: {streamerSettings}");
             _statusProvider = statusProvider;
             _webCameraProvider = webCameraProvider;
             _streamerSettings = streamerSettings;
@@ -56,7 +52,7 @@ namespace RaspberryStreamer
 
         private void StartRecording(CancellationToken stoppingToken)
         {
-            while (_statusProvider.FileInfo == null || _webCameraProvider.CurrentFrame == null)
+            while (_statusProvider.FileInfo == null || _webCameraProvider.Width == 0)
             {
                 Thread.Sleep(1000 / _streamerSettings.FPS);
             }
@@ -64,7 +60,7 @@ namespace RaspberryStreamer
             var filename = _statusProvider.FileInfo.GetFileNameWithoutPath();
             filename = GenerateVideoFileName(filename);
 
-            using var writer = new VideoWriter(filename, _webCameraProvider.CurrentFrame, _streamerSettings);
+            using var writer = new VideoWriter(filename, _webCameraProvider.Width, _webCameraProvider.Height, _webCameraProvider.PixelFormat, _streamerSettings);
 
             _logger.LogInformation($"Non-Idle status {_statusProvider.Status.DetailedStatus}, starting recording of {filename}.");
             var sw = new Stopwatch();
@@ -76,7 +72,11 @@ namespace RaspberryStreamer
                     continue;
                 }
                 sw.Restart();
-                writer.WriteFrame(_webCameraProvider.CurrentFrame);
+                unsafe
+                {
+                    writer.WriteFrame(_webCameraProvider.GetFrame());
+                }
+
                 var delay = (int) (1000.0 / _streamerSettings.FPS - sw.ElapsedMilliseconds);
                 if (delay > 0)
                 {
