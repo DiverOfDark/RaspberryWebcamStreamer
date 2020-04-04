@@ -33,7 +33,6 @@ namespace RaspberryStreamer
                 {
                     services.AddSingleton(streamerSettings);
                     services.AddSingleton<DuetWifiStatusProvider>();
-                    services.AddSingleton<WebCameraProvider>();
                     services.AddHostedService<Worker>();
                 })
                 .Build()

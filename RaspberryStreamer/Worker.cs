@@ -15,14 +15,14 @@ namespace RaspberryStreamer
         private readonly WebCameraProvider _webCameraProvider;
         private readonly StreamerSettings _streamerSettings;
 
-        public Worker(ILogger<Worker> logger, DuetWifiStatusProvider statusProvider, WebCameraProvider webCameraProvider, StreamerSettings streamerSettings)
+        public Worker(ILogger<Worker> logger, DuetWifiStatusProvider statusProvider, StreamerSettings streamerSettings)
         {
+            FFMpegSetup.Init(logger);
             _logger = logger;
             _logger.LogInformation($"Starting with settings: {streamerSettings}");
             _statusProvider = statusProvider;
-            _webCameraProvider = webCameraProvider;
+            _webCameraProvider = new WebCameraProvider(streamerSettings);
             _streamerSettings = streamerSettings;
-            FFMpegSetup.Init(logger);
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -60,7 +60,7 @@ namespace RaspberryStreamer
             var filename = _statusProvider.FileInfo.GetFileNameWithoutPath();
             filename = GenerateVideoFileName(filename);
 
-            using var writer = new VideoWriter(filename, _webCameraProvider.Width, _webCameraProvider.Height, _webCameraProvider.PixelFormat, _streamerSettings);
+            using var writer = new VideoWriter(_logger, filename, _webCameraProvider.Width, _webCameraProvider.Height, _webCameraProvider.PixelFormat, _streamerSettings);
 
             _logger.LogInformation($"Non-Idle status {_statusProvider.Status.DetailedStatus}, starting recording of {filename}.");
             var sw = new Stopwatch();

@@ -1,3 +1,5 @@
+using System;
+using System.Runtime.InteropServices;
 using FFmpeg.AutoGen;
 
 namespace RaspberryStreamer
@@ -6,17 +8,28 @@ namespace RaspberryStreamer
     {
         long _currentPosition;
 
-        public ByteReader()
+        // ReSharper disable once PrivateFieldCanBeConvertedToLocalVariable
+        private readonly avio_alloc_context_read_packet _readDelegate;
+        // ReSharper disable once PrivateFieldCanBeConvertedToLocalVariable
+        private readonly avio_alloc_context_seek _seekDelegate;
+
+        public unsafe ByteReader()
         {
             _currentPosition = 0;
-        }
+            _readDelegate = Read;
+            _seekDelegate = Seek;
+            ReadFunc = new avio_alloc_context_read_packet_func {Pointer = Marshal.GetFunctionPointerForDelegate(_readDelegate)};
+            SeekFunc = new avio_alloc_context_seek_func {Pointer = Marshal.GetFunctionPointerForDelegate(_seekDelegate)};
+         }
 
         public byte[] Buffer { get; set; }
+        public avio_alloc_context_read_packet_func ReadFunc { get; }
+        public avio_alloc_context_seek_func SeekFunc { get; }
 
-        public unsafe int Read(void* _, byte* buf, int buf_size)
+        private unsafe int Read(void* _, byte* buf, int bufSize)
         {
-            int size = buf_size;
-            if (Buffer.Length - _currentPosition < buf_size)
+            int size = bufSize;
+            if (Buffer.Length - _currentPosition < bufSize)
                 size = (int) (Buffer.Length - _currentPosition);
             if (size > 0)
             {
@@ -31,7 +44,7 @@ namespace RaspberryStreamer
             return size;
         }
 
-        public unsafe long Seek(void* _, long offset, int whence)
+        private unsafe long Seek(void* _, long offset, int whence)
         {
             switch (whence)
             {

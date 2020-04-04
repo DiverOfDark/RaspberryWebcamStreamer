@@ -1,9 +1,11 @@
 using System;
 using FFmpeg.AutoGen;
+using Microsoft.Extensions.Logging;
 
 namespace RaspberryStreamer
 {
     // TODO Get picture from v4l2 instead of URL / jpeg decode
+    // TODO use hardware accelerated h264
     public unsafe class VideoWriter : IDisposable
     {
         private readonly VideoFlipperConverter _videoFlipperConverter;
@@ -13,13 +15,19 @@ namespace RaspberryStreamer
         private readonly AVFormatContext* _h264AvFormatContext = null;
         private int _frameCounter;
 
-        public VideoWriter(string filename, int width, int height, AVPixelFormat webcamPixelFormat, StreamerSettings settings)
+        public VideoWriter(ILogger logger, string filename, int width, int height, AVPixelFormat webcamPixelFormat, StreamerSettings settings)
         {
             _fps = settings.FPS;
 
             _videoFlipperConverter = new VideoFlipperConverter(width, height, webcamPixelFormat, settings);
 
-            _h264Codec = ffmpeg.avcodec_find_encoder(AVCodecID.AV_CODEC_ID_H264);
+            _h264Codec = ffmpeg.avcodec_find_encoder_by_name("h264_omx");
+            if (_h264Codec == null)
+            {
+                logger.LogError("Don't using hardware-accelerated h264 encoder, falling back to software one.");
+                _h264Codec = ffmpeg.avcodec_find_encoder_by_name("libx264");
+            }
+
             if (_h264Codec == null) {
                 throw new InvalidOperationException("Codec not found.");
             }
