@@ -8,8 +8,11 @@ namespace RaspberryStreamer
         [Option('h', "duetWiFiHost", Required = false, Default = "duetwifi")]
         public string DuetWifiHost { get; set; }
 
-        [Option('w', "webcamUrl", Required = false, Default = "http://raspberry:8081/?action=snapshot")]
+        [Option('w', "webcamUrl", Required = false, HelpText = "i.e. http://raspberry:8081/?action=snapshot")]
         public string WebCamUrl { get; set; }
+
+        [Option('v', "webcamDevice", Required = false, HelpText = "i.e. /dev/video0")]
+        public string WebCamDevice { get; set; }
 
         [Option('f', "fps", Required = false, Default = 10)]
         public int FPS { get; set; }

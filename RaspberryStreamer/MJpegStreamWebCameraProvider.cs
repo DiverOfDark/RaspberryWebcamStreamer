@@ -6,13 +6,13 @@ using FFmpeg.AutoGen;
 
 namespace RaspberryStreamer
 {
-    public class WebCameraProvider : IDisposable
+    public class MJpegStreamWebCameraProvider : IDisposable, IWebCamera
     {
         private readonly StreamerSettings _settings;
         private readonly HttpClient _httpClient;
         private byte[] _currentFrame;
 
-        public WebCameraProvider(StreamerSettings settings)
+        public MJpegStreamWebCameraProvider(StreamerSettings settings)
         {
             _settings = settings;
             _httpClient = new HttpClient();
