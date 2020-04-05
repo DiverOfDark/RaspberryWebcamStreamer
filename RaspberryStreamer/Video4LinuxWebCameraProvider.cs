@@ -25,10 +25,10 @@ namespace RaspberryStreamer
 
             AVDictionary* options = null;
 
-            var ifmt = ffmpeg.av_find_input_format("video4linux2");
+            var ifmt = ffmpeg.av_find_input_format("v4l2");
             if (ifmt == null)
             {
-                throw new Exception("Cannot find input format");
+                // throw new Exception("Cannot find input format");
             }
 
             _fmtCtx = ffmpeg.avformat_alloc_context();
@@ -45,8 +45,8 @@ namespace RaspberryStreamer
             // This will not work if the camera does not support h264. In that case
             // remove this line. I wrote this for Raspberry Pi where the camera driver
             // can stream h264.
-            ffmpeg.av_dict_set(&options, "input_format", "h264", 0);
-            ffmpeg.av_dict_set(&options, "video_size", "320x224", 0);
+            // ffmpeg.av_dict_set(&options, "input_format", "h264", 0);
+            ffmpeg.av_dict_set(&options, "video_size", Width + "x" + Height, 0);
 
             // open input file, and allocate format context
             fixed(AVFormatContext** fmtCtxAddr = &_fmtCtx)
@@ -85,8 +85,8 @@ namespace RaspberryStreamer
             }
 
             _frame = ffmpeg.av_frame_alloc();
-            
-            ffmpeg.av_init_packet(_pkt);
+
+            _pkt = ffmpeg.av_packet_alloc();
             _pkt->data = null;
             _pkt->size = 0;
         }
@@ -94,37 +94,36 @@ namespace RaspberryStreamer
 
         public unsafe AVFrame* GetFrame()
         {
-            fixed (AVPacket* pktAddr = &_pkt)
+            int ret;
+            do
             {
-                int ret;
-                do
+                ret = ffmpeg.av_read_frame(_fmtCtx, _pkt);
+            } while (ret == ffmpeg.AVERROR(ffmpeg.EAGAIN));
+
+            ret.ThrowExceptionIfError();
+
+            do
+            {
+                if (_pkt->stream_index == _videoStreamIdx)
                 {
-                    ret = ffmpeg.av_read_frame(_fmtCtx, pktAddr);
-                } while (ret == ffmpeg.AVERROR(ffmpeg.EAGAIN));
-                ret.ThrowExceptionIfError();
-                
-                do
-                {
-                    if (_pkt->stream_index == _videoStreamIdx)
+                    int error;
+                    do
                     {
-                        int error;
-                        do
-                        {
-                            ffmpeg.avcodec_send_packet(_videoDecCtx, pktAddr).ThrowExceptionIfError();
-                            error = ffmpeg.avcodec_receive_frame(_videoDecCtx, _frame);
-                        } while (error == ffmpeg.AVERROR(ffmpeg.EAGAIN));
-                        error.ThrowExceptionIfError();
-                    }
+                        ffmpeg.avcodec_send_packet(_videoDecCtx, _pkt).ThrowExceptionIfError();
+                        error = ffmpeg.avcodec_receive_frame(_videoDecCtx, _frame);
+                    } while (error == ffmpeg.AVERROR(ffmpeg.EAGAIN));
 
-                    ret = _pkt->size;
-                    if (ret < 0)
-                        break;
-                    _pkt->data += ret;
-                    _pkt->size -= ret;
-                } while (_pkt->size > 0);
+                    error.ThrowExceptionIfError();
+                }
 
-                return _frame;
-            }
+                ret = _pkt->size;
+                if (ret < 0)
+                    break;
+                _pkt->data += ret;
+                _pkt->size -= ret;
+            } while (_pkt->size > 0);
+
+            return _frame;
         }
 
         public void Start(CancellationToken token)

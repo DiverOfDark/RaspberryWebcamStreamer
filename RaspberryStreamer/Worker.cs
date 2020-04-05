@@ -27,7 +27,7 @@ namespace RaspberryStreamer
             }
             else if (streamerSettings.WebCamDevice != null)
             {
-                _webCamera = new Video4LinuxWebCameraProvider(streamerSettings);
+                _webCamera = new Video4LinuxWebCameraProvider(loggerFactory.CreateLogger<Video4LinuxWebCameraProvider>(), streamerSettings);
             } else throw new ArgumentOutOfRangeException("Either webcamUrl or webcamDevice should be enabled");
 
             _streamerSettings = streamerSettings;
@@ -67,7 +67,8 @@ namespace RaspberryStreamer
             
             var filename = _statusProvider.FileInfo.GetFileNameWithoutPath();
             filename = GenerateVideoFileName(filename);
-
+            filename = Path.Combine(_streamerSettings.OutputFolder, filename);
+            
             using var writer = new VideoWriter(_logger, filename, _webCamera.Width, _webCamera.Height, _webCamera.PixelFormat, _streamerSettings);
 
             _logger.LogInformation($"Non-Idle status {_statusProvider.Status.DetailedStatus}, starting recording of {filename}.");

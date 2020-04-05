@@ -1,0 +1,11 @@
+[Unit]
+Description=WebCam DuetWiFi video recorder
+
+[Service]
+Type=notify
+User=pi
+Group=pi
+ExecStart=/home/pi/raspberry-streamer/RaspberryStreamer -w "http://localhost:8081/?action=snapshot" -f 30 -y --output /home/pi/streams
+
+[Install]
+WantedBy=multi-user.target

@@ -18,6 +18,11 @@
   <ItemGroup>
     <Content Include="ffmpeg\**" Condition="'$(RuntimeIdentifier)' == 'win7-x64'">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+    </Content>
+    <Content Include="raspberry-streamer.service" Condition="'$(RuntimeIdentifier)' == 'linux-arm'">
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
     </Content>
   </ItemGroup>
 

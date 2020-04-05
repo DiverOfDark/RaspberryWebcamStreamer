@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using CommandLine;
@@ -34,7 +35,7 @@ namespace RaspberryStreamer
                 .ConfigureLogging((ctx, x) =>
                 {
                     x.SetMinimumLevel(LogLevel.Trace)
-                        .AddFile("app.log")
+                        .AddFile(Path.Combine(streamerSettings.OutputFolder, "app.log"))
                         .AddConsole(t => t.Format = ConsoleLoggerFormat.Systemd);
                 })
                 .ConfigureServices((hostContext, services) =>

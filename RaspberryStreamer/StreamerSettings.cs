@@ -1,3 +1,7 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
 using CommandLine;
 using Newtonsoft.Json;
 
@@ -17,6 +21,8 @@ namespace RaspberryStreamer
         [Option('f', "fps", Required = false, Default = 10)]
         public int FPS { get; set; }
 
+        [Option('o', "output", Required = false, Default = "/home/pi/")]
+        public string OutputFolder { get; set; }
 
         [Option('y', "flipy", Required = false, Default = false)]
         public bool FlipY { get; set; }
@@ -26,7 +32,14 @@ namespace RaspberryStreamer
 
         public override string ToString()
         {
-            return $"{nameof(DuetWifiHost)}: {DuetWifiHost}, {nameof(WebCamUrl)}: {WebCamUrl}, {nameof(FPS)}: {FPS}, {nameof(FlipY)}: {FlipY}, {nameof(FlipX)}: {FlipX}";
+            return string.Join(Environment.NewLine, GetType().GetProperties().OrderBy(v => v.Name).Select(v =>
+            {
+                var attribute = v.GetCustomAttribute(typeof(OptionAttribute)) as OptionAttribute;
+                var parameterName = attribute?.LongName ?? v.Name;
+                var parameterValue = (v.GetValue(this) ?? "").ToString();
+
+                return parameterName + "=" + parameterValue;
+            }));
         }
     }
 }

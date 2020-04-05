@@ -43,6 +43,7 @@ namespace RaspberryStreamer
                 _h264Stream->codec->height = height;
                 _h264Stream->codec->time_base = new AVRational {num = 1, den = _fps};
                 _h264Stream->codec->pix_fmt = AVPixelFormat.AV_PIX_FMT_YUV420P;
+                _h264Stream->codec->bit_rate = 1_500_000;
                 ffmpeg.av_opt_set(_h264Stream->codec->priv_data, "preset", "veryslow", 0);
 
                 if ((_h264AvFormatContext->oformat->flags & ffmpeg.AVFMT_GLOBALHEADER) != 0) // Some formats require a global header.
