@@ -67,6 +67,7 @@ namespace RaspberryStreamer
             }
             finally
             {
+                ffmpeg.av_frame_unref(frame);
                 ffmpeg.av_frame_free(&frame);
             }
             _frameCounter++;

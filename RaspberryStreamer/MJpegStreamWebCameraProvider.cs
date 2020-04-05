@@ -64,8 +64,10 @@ namespace RaspberryStreamer
         {
             var webcamFormatContext = ffmpeg.avformat_alloc_context();
             var webcamByteReader = new ByteReader();
-            var webcamBuffer = ffmpeg.av_malloc(4096);
-            var webcamAllocContext = ffmpeg.avio_alloc_context((byte*)webcamBuffer, 4096, 0, null, webcamByteReader.ReadFunc, null, webcamByteReader.SeekFunc);
+            var bufSize = 1048576u;
+            var webcamBuffer = ffmpeg.av_malloc(bufSize);
+
+            var webcamAllocContext = ffmpeg.avio_alloc_context((byte*)webcamBuffer, (int) bufSize, 0, null, webcamByteReader.ReadFunc, null, webcamByteReader.SeekFunc);
             if (webcamAllocContext == null)
             {
                 throw new NullReferenceException(nameof(webcamAllocContext));
@@ -113,6 +115,8 @@ namespace RaspberryStreamer
                     GC.KeepAlive(webcamByteReader);
                     ffmpeg.avcodec_close(webcamCodecCtx);
                     ffmpeg.avformat_close_input(&webcamFormatContext);
+                    ffmpeg.avformat_free_context(webcamFormatContext);
+                    ffmpeg.av_free(webcamAllocContext->buffer); // webcamBuffer seems like realloc'ed
                     ffmpeg.avio_context_free(&webcamAllocContext);
                     ffmpeg.av_packet_unref(&pkt);
                 }
