@@ -71,6 +71,7 @@ namespace RaspberryStreamer
                 filename = "Unknown";
 
             filename = $"{DateTime.Now:s} - {filename}.mp4";
+            filename = filename.Replace(":", "_");
             filename = Path.Combine(_streamerSettings.OutputFolder, filename);
             
             using var writer = new VideoWriter(_logger, filename, _webCamera.Width, _webCamera.Height, _webCamera.PixelFormat, _streamerSettings);
