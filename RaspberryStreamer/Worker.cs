@@ -23,7 +23,7 @@ namespace RaspberryStreamer
             _statusProvider = statusProvider;
             if (streamerSettings.WebCamUrl != null)
             {
-                _webCamera = new MJpegStreamWebCameraProvider(streamerSettings);
+                _webCamera = new MJpegStreamWebCameraProvider(loggerFactory.CreateLogger<MJpegStreamWebCameraProvider>(), streamerSettings);
             }
             else if (streamerSettings.WebCamDevice != null)
             {
@@ -66,7 +66,11 @@ namespace RaspberryStreamer
             }
             
             var filename = _statusProvider.FileInfo.GetFileNameWithoutPath();
-            filename = GenerateVideoFileName(filename);
+            filename = Path.GetFileNameWithoutExtension(filename);
+            if (string.IsNullOrWhiteSpace(filename))
+                filename = "Unknown";
+
+            filename = $"{DateTime.Now:s} - {filename}.mp4";
             filename = Path.Combine(_streamerSettings.OutputFolder, filename);
             
             using var writer = new VideoWriter(_logger, filename, _webCamera.Width, _webCamera.Height, _webCamera.PixelFormat, _streamerSettings);
@@ -93,24 +97,6 @@ namespace RaspberryStreamer
                 }
             }
             _logger.LogInformation($"Completed recording of {filename}");
-        }
-
-        private string GenerateVideoFileName(string filename)
-        {
-            filename = Path.GetFileNameWithoutExtension(filename);
-            if (string.IsNullOrWhiteSpace(filename))
-                filename = "Unknown";
-
-            if (!File.Exists(filename + ".mp4"))
-                return filename + ".mp4";
-            int count = 1;
-            while (true)
-            {
-                var newFilename = filename + " (" + count + ").mp4";
-                if (!File.Exists(newFilename))
-                    return newFilename;
-                count++;
-            }
         }
     }
 }

@@ -3,17 +3,20 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using FFmpeg.AutoGen;
+using Microsoft.Extensions.Logging;
 
 namespace RaspberryStreamer
 {
-    public class MJpegStreamWebCameraProvider : IDisposable, IWebCamera
+    public class MJpegStreamWebCameraProvider : IWebCamera
     {
+        private readonly ILogger<MJpegStreamWebCameraProvider> _logger;
         private readonly StreamerSettings _settings;
         private readonly HttpClient _httpClient;
         private byte[] _currentFrame;
 
-        public MJpegStreamWebCameraProvider(StreamerSettings settings)
+        public MJpegStreamWebCameraProvider(ILogger<MJpegStreamWebCameraProvider> logger, StreamerSettings settings)
         {
+            _logger = logger;
             _settings = settings;
             _httpClient = new HttpClient();
         }
@@ -25,21 +28,29 @@ namespace RaspberryStreamer
             var ct = (CancellationToken) obj;
             while (!ct.IsCancellationRequested)
             {
-                var bytes = await _httpClient.GetByteArrayAsync(_settings.WebCamUrl);
-
-                if (_currentFrame == null)
+                try
                 {
-                    unsafe { 
-                        var framePtr = GetFrame(bytes, out var width, out var height, out var pixFormat);
-                        ffmpeg.av_frame_free(&framePtr);
-                        Width = width;
-                        Height = height;
-                        PixelFormat = pixFormat;
-                    }
-                }
+                    var bytes = await _httpClient.GetByteArrayAsync(_settings.WebCamUrl);
 
-                _currentFrame = bytes;
-                await Task.Delay(1000 / _settings.FPS, ct);
+                    if (_currentFrame == null)
+                    {
+                        unsafe
+                        {
+                            var framePtr = GetFrame(bytes, out var width, out var height, out var pixFormat);
+                            ffmpeg.av_frame_free(&framePtr);
+                            Width = width;
+                            Height = height;
+                            PixelFormat = pixFormat;
+                        }
+                    }
+
+                    _currentFrame = bytes;
+                    await Task.Delay(1000 / _settings.FPS, ct);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to get snapshot from camera");
+                }
             }
         }
 
