@@ -82,11 +82,11 @@ namespace RaspberryStreamer
 
                 AVCodec* webcamCodec = ffmpeg.avcodec_find_decoder(webcamCodecCtx->codec_id);
 
+                AVPacket pkt;
                 try
                 {
                     ffmpeg.avcodec_open2(webcamCodecCtx, webcamCodec, null).ThrowExceptionIfError();
                     var webcamFrame = ffmpeg.av_frame_alloc();
-                    AVPacket pkt;
                     while (ffmpeg.av_read_frame(webcamFormatContext, &pkt).ThrowExceptionIfError() >= 0)
                     {
                         if (pkt.stream_index != 0)
@@ -114,6 +114,7 @@ namespace RaspberryStreamer
                     ffmpeg.avcodec_close(webcamCodecCtx);
                     ffmpeg.avformat_close_input(&webcamFormatContext);
                     ffmpeg.avio_context_free(&webcamAllocContext);
+                    ffmpeg.av_packet_unref(&pkt);
                 }
 
                 width = 0;
